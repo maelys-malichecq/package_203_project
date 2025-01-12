@@ -1,0 +1,15 @@
+[tool.poetry]
+name = "package_203_project"
+version = "0.0.0"
+description = "A package for doing great things!"
+authors = ["Maelys Malichecq"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
