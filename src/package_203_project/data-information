@@ -1,0 +1,24 @@
+def vol_portfolio(portfolio: dict, information_set):
+        """
+        To compute the volatility of a given portfolio.
+        """
+        Sigma = information_set.get('covariance_matrix')
+        weights = np.array(list(portfolio.values()))
+        
+        # Compute portfolio variance and volatility
+        portfolio_variance = np.dot(weights.T, np.dot(Sigma, weights))
+        portfolio_volatility = np.sqrt(portfolio_variance)
+        return portfolio_volatility
+
+def risk_contribution(portfolio: dict, information_set):
+        """
+        T get each stock's contribution in terms of the overall portfolio risk 
+        """
+        Sigma = information_set['covariance_matrix']
+        weights = np.array(list(portfolio.values()))
+        portfolio_var = portfolio_volatility(portfolio, information_set)**2 # Portfolio variance
+        marginal_contrib = np.dot(Sigma, weights)  # Marginal contributions
+        risk_contrib = (weights * marginal_contrib) / portfolio_var   # Risk contributions
+
+        # Convert risk contributions into a dictionary
+        return {asset: round(risk_contrib[i], 3) for i, asset in enumerate(portfolio.keys())}
