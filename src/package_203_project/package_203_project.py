@@ -22,3 +22,4 @@ block_chain = load_blockchain('backtest')
 print(str(block_chain))
 # check if the blockchain is valid
 print(block_chain.is_valid())
+
