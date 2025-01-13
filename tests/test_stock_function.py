@@ -2,57 +2,36 @@
 from pybacktestchain.data_module import get_stocks_data
 from package_203_project.stocks_function import rank_stocks_by_volume, get_stocks_log_returns
 
-# Get data for multiple stocks
-df = get_stocks_data(['AAPL', 'MSFT', 'GOOGL'], '2022-01-01', '2022-12-31')
+# Stock data handler
+stock_handler = StockDataHandler(
+    tickers=["AAPL", "MSFT", "GOOGL"], 
+    start_date="2022-01-01", 
+    end_date="2022-12-31"
+)
+log_returns_pivot = stock_handler.get_stocks_log_returns()
 
-# Rank stocks based on their average trading volume
-ranked_df = rank_stocks_by_volume(df)
+# Benchmark handler
+benchmark_handler = BenchmarkHandler(
+    benchmark="SPX", 
+    start_date="2022-01-01", 
+    end_date="2022-12-31"
+)
+bench_log_returns = benchmark_handler.get_bench_log_returns()
 
-print(ranked_df)
-
-tickers = ['AAPL', 'MSFT', 'GOOGL']
-start_date = '2022-01-01'
-end_date = '2022-12-31'
-
-# Calculer les log returns avec la structure pivotée
-log_returns_pivot = get_stocks_log_returns(tickers, start_date, end_date)
-
+print("Log Returns Pivot:")
 print(log_returns_pivot.head())
 
-
-# Get S&P 500 log returns
-spx_log_returns = get_bench_log_returns("2022-01-01", "2022-12-31", benchmark="SPX")
-print("SPX Log Returns:")
-print(spx_log_returns.head())
-
-# Get CAC 40 log returns
-cac40_log_returns = get_bench_log_returns("2022-01-01", "2022-12-31", benchmark="CAC40")
-print("\nCAC40 Log Returns:")
-print(cac40_log_returns.head())
-
-# Get Euro Stoxx 50 log returns
-eurostoxx_log_returns = get_bench_log_returns("2022-01-01", "2022-12-31", benchmark="EUROSTOXX")
-print("\nEUROSTOXX Log Returns:")
-print(eurostoxx_log_returns.head())
-
-# Get MSCI log returns (if MSCI ticker is valid in your dataset)
-msci_log_returns = get_bench_log_returns("2022-01-01", "2022-12-31", benchmark="MSCI")
-print("\nMSCI Log Returns:")
-print(msci_log_returns.head())
+print("\nBenchmark Log Returns:")
+print(bench_log_returns.head())
 
 
-# Example stock log returns pivot table
-log_returns_pivot = get_stocks_log_returns_pivot(['AAPL', 'MSFT', 'GOOGL'], '2022-01-01', '2022-12-31')
+# Rank stocks by volume
+stock_data = stock_handler.get_stocks_data()
+ranked_stocks = StockAnalysis.rank_stocks_by_volume(stock_data)
+print("Ranked Stocks by Volume:")
+print(ranked_stocks)
 
-# Calculate average beta using S&P 500 as benchmark
-result_spx = calculate_average_beta(log_returns_pivot, '2022-01-01', '2022-12-31', benchmark="SPX")
-print("Betas for each stock with SPX:", result_spx["stock_betas"])
-print("Average Beta with SPX:", result_spx["average_beta"])
-
-# Example stock log returns pivot table
-log_returns_pivot = get_stocks_log_returns_pivot(['AAPL', 'MSFT', 'GOOGL'], '2022-01-01', '2022-12-31')
-
-# Calculate average beta using CAC40 as benchmark
-result_msci = calculate_average_beta(log_returns_pivot, '2022-01-01', '2022-12-31', benchmark="MSCI")
-print("\nBetas for each stock with MSCI:", result_msci["stock_betas"])
-print("Average Beta with MSCI:", result_msci["average_beta"])
+# Calculate average beta
+beta_result = StockAnalysis.calculate_average_beta(log_returns_pivot, bench_log_returns)
+print("\nBetas for Each Stock:", beta_result["stock_betas"])
+print("Average Beta:", beta_result["average_beta"])
