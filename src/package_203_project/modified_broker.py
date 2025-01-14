@@ -12,6 +12,7 @@ from pybacktestchain.blockchain import Block, Blockchain
 from numba import jit 
 from datetime import timedelta, datetime
 from pybacktestchain.broker import EndOfMonth, StopLoss, Broker
+import matplotlib.pyplot as plt
 
 
 # -----------------------------------------------------------
@@ -87,9 +88,29 @@ class Backtest:
         # Save the portfolio values to a DataFrame
         portfolio_values_df = pd.DataFrame(portfolio_values)
 
+        # Calculate portfolio returns and add them as a new column
+        portfolio_values_df['PortfolioReturn'] = portfolio_values_df['PortfolioValue'].pct_change()
+
         # Print the DataFrame directly
         print(portfolio_values_df)
         
+        # Calculate and print statistics
+        if 'PortfolioReturn' in portfolio_values_df.columns:
+            valid_returns = portfolio_values_df['PortfolioReturn'].dropna()
+            avg_return = valid_returns.mean()
+            std_dev = valid_returns.std()
+            kurt = kurtosis(valid_returns, fisher=True)
+            skewness = skew(valid_returns)
+
+            print("Portfolio Return Statistics:")
+            print(f"Average Return: {avg_return:.6f}")
+            print(f"Standard Deviation: {std_dev:.6f}")
+            print(f"Kurtosis: {kurt:.6f}")
+            print(f"Skewness: {skewness:.6f}")
+        
+        if 'PortfolioReturn' not in portfolio_values_df.columns:
+            print("no compute of the statistic")
+
         # Create backtests folder if it does not exist
         if not os.path.exists('backtests_portfolio_values'):
             os.makedirs('backtests_portfolio_values')
@@ -109,3 +130,25 @@ class Backtest:
 
         # Store the backtest in the blockchain
         self.broker.blockchain.add_block(self.backtest_name, df.to_string())
+
+
+        # Ensure the folder for graphs exists
+        graphs_folder = 'backtests_portfolio_graphs'
+        if not os.path.exists(graphs_folder):
+            os.makedirs(graphs_folder)
+
+        # Plot portfolio returns
+        plt.figure(figsize=(10, 6))
+        plt.plot(portfolio_values_df['Date'], portfolio_values_df['PortfolioReturn'], label='Portfolio Returns')
+        plt.xlabel('Date')
+        plt.ylabel('Return')
+        plt.title('Portfolio Returns Over Time')
+        plt.legend()
+        plt.grid(True)
+
+        # Save the graph
+        graph_path = os.path.join(graphs_folder, f"{self.backtest_name}_portfolio_returns.png")
+        plt.savefig(graph_path)
+
+        # Optionally display the plot
+        plt.show()
