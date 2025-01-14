@@ -94,6 +94,8 @@ class Backtest:
 
         # Calculate portfolio returns and add them as a new column
         portfolio_values_df['PortfolioReturn'] = portfolio_values_df['PortfolioValue'].pct_change()
+        # Calculate cumulative returns
+        portfolio_values_df['CumulativeReturn'] = (1 + portfolio_values_df['PortfolioReturn']).cumprod() - 1
 
         # Print the DataFrame directly
         print(portfolio_values_df)
@@ -139,7 +141,7 @@ class Backtest:
 
         # Plot portfolio returns
         plt.figure(figsize=(10, 6))
-        plt.plot(portfolio_values_df['Date'], portfolio_values_df['PortfolioReturn'], label='Portfolio Returns')
+        plt.plot(portfolio_values_df['Date'], portfolio_values_df['CumulativeReturn'], label='Cumulative Return')
         plt.xlabel('Date')
         plt.ylabel('Return')
         plt.title('Portfolio Returns Over Time')
