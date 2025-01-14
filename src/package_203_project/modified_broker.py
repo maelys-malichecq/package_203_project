@@ -17,10 +17,46 @@ from scipy.stats import kurtosis, skew
 import matplotlib.pyplot as plt
 
 
+# -----------------------------------------------------------
+# Increase the frequency of the rebalancing 
+# -----------------------------------------------------------
+
+
+@dataclass
+class EndOfMonth(RebalanceFlag):
+    def time_to_rebalance(self, t: datetime):
+        # Convert to pandas Timestamp for convenience
+        pd_date = pd.Timestamp(t)
+        # Get the last business day of the month
+        last_business_day = pd_date + pd.offsets.BMonthEnd(0)
+        # Check if the given date matches the last business day
+        return pd_date == last_business_day
+
+class EndOfWeek(RebalanceFlag):
+    def time_to_rebalance(self, t: datetime):
+        # Convert to pandas Timestamp for convenience
+        pd_date = pd.Timestamp(t)
+        # Check for the last business day of the week (Friday)
+        return pd_date.weekday == 4
+
+class EndOfDay(RebalanceFlag):
+    def time_to_rebalance(self, t: datetime):
+        # Always true as we need to rebalance everyday
+        return True
+
+    # Determining the rebalancing flag
+    rebalance_map = {
+        "daily": EndOfDay,
+        "weekly": EndOfWeek,
+        "monthly": EndOfMonth
+    }
+
 
 
 # -----------------------------------------------------------
-# Save the Backtest portfolio values to a DataFrame and print it
+# Modified Backtest function. 
+# Save the Backtest portfolio values to a DataFrame and returns analysis: returns, volatility, skew, kurtosis.
+# Plot the Portfolio values (cumulated returns, weight allocation through time)
 # -----------------------------------------------------------
 
 
@@ -200,7 +236,7 @@ class Backtest:
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
 
-        # Save the figure as a PNG using Plotly's write_image method
+        # Save the figure as a PNG using Plotly's write_image method - better for visualisation of weight allocaton 
         png_path = os.path.join(folder_path, f"{self.backtest_name}_portfolio_weights.png")
         
         # Ensure Kaleido is installed for saving images
