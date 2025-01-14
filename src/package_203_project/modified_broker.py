@@ -13,6 +13,8 @@ from numba import jit
 from datetime import timedelta, datetime
 from pybacktestchain.broker import EndOfMonth, StopLoss, Broker
 import matplotlib.pyplot as plt
+from scipy.stats import kurtosis, skew
+
 
 
 # -----------------------------------------------------------
@@ -105,11 +107,8 @@ class Backtest:
             print("Portfolio Return Statistics:")
             print(f"Average Return: {avg_return:.6f}")
             print(f"Standard Deviation: {std_dev:.6f}")
-            print(f"Kurtosis: {kurt:.6f}")
+            print(f"Excess Kurtosis: {kurt:.6f}")
             print(f"Skewness: {skewness:.6f}")
-        
-        if 'PortfolioReturn' not in portfolio_values_df.columns:
-            print("no compute of the statistic")
 
         # Create backtests folder if it does not exist
         if not os.path.exists('backtests_portfolio_values'):
