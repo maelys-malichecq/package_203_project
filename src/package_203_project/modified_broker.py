@@ -3,7 +3,7 @@ import pandas as pd
 import logging
 from dataclasses import dataclass
 from datetime import datetime
-
+import plotly.graph_objects as go
 import os 
 import pickle
 from pybacktestchain.data_module import UNIVERSE_SEC, FirstTwoMoments, get_stocks_data, DataModule, Information
@@ -12,8 +12,10 @@ from pybacktestchain.blockchain import Block, Blockchain
 from numba import jit 
 from datetime import timedelta, datetime
 from pybacktestchain.broker import EndOfMonth, StopLoss, Broker
-import matplotlib.pyplot as plt
+import plotly.graph_objects as go
 from scipy.stats import kurtosis, skew
+import matplotlib.pyplot as plt
+
 
 
 
@@ -130,7 +132,6 @@ class Backtest:
         # Store the backtest in the blockchain
         self.broker.blockchain.add_block(self.backtest_name, df.to_string())
 
-
         # Ensure the folder for graphs exists
         graphs_folder = 'backtests_portfolio_graphs'
         if not os.path.exists(graphs_folder):
@@ -148,6 +149,62 @@ class Backtest:
         # Save the graph
         graph_path = os.path.join(graphs_folder, f"{self.backtest_name}_portfolio_returns.png")
         plt.savefig(graph_path)
+    
 
-        # Optionally display the plot
-        plt.show()
+    def plot_portfolio_weights(self, start_date, end_date):
+        dates = pd.date_range(start=start_date, end=end_date, freq='M')
+        portfolio_weights = []
+        stock_list = None
+
+        info = self.information_class(
+            s=self.s,
+            data_module=DataModule(get_stocks_data(self.universe, '2015-01-01', '2023-01-01')),
+            time_column=self.time_column,
+            company_column=self.company_column,
+            adj_close_column=self.adj_close_column
+        )
+
+        for date in dates:
+            information_set = info.compute_information(date)
+            portfolio = info.compute_portfolio(date, information_set)
+            portfolio_weights.append(portfolio)
+            if stock_list is None:
+                stock_list = list(portfolio.keys())
+
+        df = pd.DataFrame(portfolio_weights, index=dates, columns=stock_list).fillna(0)
+
+        # Create a Plotly figure
+        fig = go.Figure()
+
+        # Add a trace for each stock in the portfolio
+        for stock in df.columns:
+            fig.add_trace(go.Scatter(
+                x=df.index,
+                y=df[stock],
+                mode='lines',
+                stackgroup='one',  # This creates the stacked effect
+                name=stock
+            ))
+
+        fig.update_layout(
+            title='Portfolio Weights Over Time',
+            xaxis_title='Date',
+            yaxis_title='Portfolio Weights',
+            showlegend=True
+        )
+
+        # Ensure the folder exists
+        folder_path = 'plot_portfolio_weight_graphs'
+        if not os.path.exists(folder_path):
+            os.makedirs(folder_path)
+
+        # Save the figure as a PNG using Plotly's write_image method
+        png_path = os.path.join(folder_path, f"{self.backtest_name}_portfolio_weights.png")
+        
+        # Ensure Kaleido is installed for saving images
+        fig.write_image(png_path)
+
+        # Display the figure (optional)
+        fig.show()
+
+        print(f"Portfolio weights graph saved as {png_path}")

@@ -5,9 +5,6 @@ from pybacktestchain.broker import StopLoss
 from pybacktestchain.blockchain import load_blockchain
 from package_203_project.modified_broker import Backtest
 from datetime import datetime
-from scipy.stats import kurtosis, skew
-
-
 
 # Set verbosity for logging
 verbose = False  # Set to True to enable logging, or False to suppress it
@@ -22,6 +19,8 @@ backtest = Backtest(
 )
 
 backtest.run_backtest()
+backtest.plot_portfolio_weights(start_date='2015-01-01', end_date='2020-01-01')
+
 
 block_chain = load_blockchain('backtest')
 print(str(block_chain))
