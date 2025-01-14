@@ -23,6 +23,11 @@ import matplotlib.pyplot as plt
 
 
 @dataclass
+class RebalanceFlag:
+    def time_to_rebalance(self, t: datetime):
+        pass 
+
+@dataclass
 class EndOfMonth(RebalanceFlag):
     def time_to_rebalance(self, t: datetime):
         # Convert to pandas Timestamp for convenience
@@ -44,14 +49,6 @@ class EndOfDay(RebalanceFlag):
         # Always true as we need to rebalance everyday
         return True
 
-    # Determining the rebalancing flag
-    rebalance_map = {
-        "daily": EndOfDay,
-        "weekly": EndOfWeek,
-        "monthly": EndOfMonth
-    }
-
-
 
 # -----------------------------------------------------------
 # Modified Backtest function. 
@@ -64,13 +61,13 @@ class EndOfDay(RebalanceFlag):
 class Backtest:
     initial_date: datetime
     final_date: datetime
-    universe = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META', 'TSLA', 'NVDA', 'INTC', 'CSCO', 'NFLX']
+    universe = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META', 'TSLA', 'NVDA', 'INTC', 'CSCO', 'NFLX','MC',"SAN","OR"]
     information_class: type = Information
     s: timedelta = timedelta(days=360)
     time_column: str = 'Date'
     company_column: str = 'ticker'
     adj_close_column: str = 'Adj Close'
-    rebalance_flag: type = EndOfMonth
+    rebalance_flag: type = EndOfMonth # Default rebalancing is monthly
     risk_model: type = StopLoss
     initial_cash: int = 1000000  # Initial cash in the portfolio
     name_blockchain: str = 'backtest'
@@ -80,6 +77,18 @@ class Backtest:
     def __post_init__(self):
         self.backtest_name = generate_random_name()
         self.broker.initialize_blockchain(self.name_blockchain)
+        # **Moved rebalance flag validation inside __post_init__**
+        rebalance_map = {
+            "daily": EndOfDay,         
+            "weekly": EndOfWeek,      
+            "monthly": EndOfMonth     
+        }
+        if isinstance(self.rebalance_flag, str):
+            if self.rebalance_flag not in rebalance_map:
+                raise ValueError("Invalid rebalance frequency. Choose from 'daily', 'weekly', or 'monthly'.")
+            self.rebalance_flag = rebalance_map[self.rebalance_flag]  # Map string to class
+        
+
 
     def run_backtest(self):
         logging.info(f"Running backtest from {self.initial_date} to {self.final_date}.")
