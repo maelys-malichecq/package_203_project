@@ -1,13 +1,13 @@
 
 from dataclasses import dataclass
 import numpy as np
+import logging
 import yfinance as yf
 import pandas as pd
 import statsmodels.api as sm
 import numpy as np
 import pybacktestchain
-from pybacktestchain.data_module import get_stocks_data
-
+from pybacktestchain.data_module import get_stocks_data, get_stock_data
 
 @dataclass
 class StockAnalysis:
@@ -64,7 +64,9 @@ class StockDataHandler:
         """
         Calculates daily log returns for the stocks.
         """
-        stock_data = self.get_stocks_data()
+        # Use of the pybacktestchain get_stocks_data function
+
+        stock_data = get_stocks_data(self.tickers, self.start_date, self.end_date)
         
         # Ensure the index is reset and Date is a column
         if 'Date' not in stock_data.columns:
@@ -105,14 +107,15 @@ class BenchmarkHandler:
             raise ValueError(f"Invalid benchmark. Choose from {list(self.benchmark_tickers.keys())}")
         
         ticker = self.benchmark_tickers[self.benchmark]
-        bench_data = yf.Ticker(ticker).history(start=self.start_date, end=self.end_date, auto_adjust=False)
         
+        # Use of get_stock_data from pybacktestchain
+        bench_data = get_stock_data(ticker, self.start_date, self.end_date)
+        if bench_data.empty:
+            raise ValueError(f"No data found for benchmark '{self.benchmark}'")
+
         # Ensure the index is reset and Date is a column
         if 'Date' not in bench_data.columns:
             bench_data = bench_data.reset_index()
-        
-        if bench_data.empty:
-            raise ValueError(f"No data found for benchmark '{self.benchmark}'")
         
         # Ensure the data is sorted by date
         bench_data.sort_values(by='Date', inplace=True)
@@ -121,3 +124,129 @@ class BenchmarkHandler:
         bench_data['log_return'] = np.log(bench_data['Close'] / bench_data['Close'].shift(1))
         
         return bench_data[['Date', 'log_return']].dropna().reset_index(drop=True)
+
+
+########## USER INTERACTION ##########
+
+import logging
+import matplotlib.pyplot as plt
+import os
+
+# Enable logging
+logging.basicConfig(level=logging.INFO)
+
+def get_user_input():
+    """
+    Collect user input for stocks, date range, and benchmark.
+    """
+    tickers = input("Enter stock tickers separated by commas (e.g., AAPL, MSFT, GOOGL): ").split(",")
+    tickers = [ticker.strip().upper() for ticker in tickers]  # Clean input
+
+    start_date = input("Enter the start date (YYYY-MM-DD): ").strip()
+    end_date = input("Enter the end date (YYYY-MM-DD): ").strip()
+
+    print("\nAvailable Benchmarks:")
+    print("1. SPX (S&P 500)")
+    print("2. CAC40 (CAC 40)")
+    print("3. EUROSTOXX (Euro Stoxx 50)")
+    print("4. MSCI (MSCI Index)")
+    benchmark_map = {"1": "SPX", "2": "CAC40", "3": "EUROSTOXX", "4": "MSCI"}
+    benchmark_choice = input("Choose a benchmark (1-4): ").strip()
+
+    if benchmark_choice not in benchmark_map:
+        raise ValueError("Invalid benchmark choice. Please select a number between 1 and 4.")
+    benchmark = benchmark_map[benchmark_choice]
+
+    return tickers, start_date, end_date, benchmark
+
+def main():
+    try:
+        tickers, start_date, end_date, benchmark = get_user_input()
+
+        # Stock data handler
+        stock_handler = StockDataHandler(
+            tickers=tickers,
+            start_date=start_date,
+            end_date=end_date
+        )
+        log_returns_pivot = stock_handler.get_stocks_log_returns()
+        print("\nLog Returns Pivot Table:")
+        print(log_returns_pivot.head())
+
+        # Benchmark handler
+        benchmark_handler = BenchmarkHandler(
+            benchmark=benchmark,
+            start_date=start_date,
+            end_date=end_date
+        )
+        bench_log_returns = benchmark_handler.get_bench_log_returns()
+        print("\nBenchmark Log Returns:")
+        print(bench_log_returns.head())
+
+        # Ensure the folder for graphs exists
+        graphs_folder = "stocks_function_graphs"
+        if not os.path.exists(graphs_folder):
+            os.makedirs(graphs_folder)
+        graphs_path = os.path.join(graphs_folder, "comparison_graphs.png")
+
+        # Create a single figure for all three graphs
+        plt.figure(figsize=(18, 18))
+
+        # Subplot 1: Cumulative Returns
+        cumulative_stock_returns = (log_returns_pivot + 1).cumprod()
+        cumulative_bench_returns = (bench_log_returns['log_return'] + 1).cumprod()
+
+        plt.subplot(3, 1, 1)
+        for stock in cumulative_stock_returns.columns:
+            plt.plot(cumulative_stock_returns.index, cumulative_stock_returns[stock], label=stock)
+        plt.plot(bench_log_returns['Date'], cumulative_bench_returns, label=f"Benchmark ({benchmark})", linewidth=2, linestyle="--")
+        plt.title("Cumulative Returns Comparison")
+        plt.xlabel("Date")
+        plt.ylabel("Cumulative Returns")
+        plt.legend()
+        plt.grid(True)
+
+        # Subplot 2: Rolling Volatility
+        rolling_volatility_stocks = log_returns_pivot.rolling(30).std()
+        rolling_volatility_bench = bench_log_returns['log_return'].rolling(30).std()
+
+        plt.subplot(3, 1, 2)
+        for stock in rolling_volatility_stocks.columns:
+            plt.plot(rolling_volatility_stocks.index, rolling_volatility_stocks[stock], label=f"{stock} Volatility")
+        plt.plot(bench_log_returns['Date'], rolling_volatility_bench, label="Benchmark Volatility", linewidth=2, linestyle="--")
+        plt.title("Rolling Volatility Comparison")
+        plt.xlabel("Date")
+        plt.ylabel("Volatility")
+        plt.legend()
+        plt.grid(True)
+
+        # Subplot 3: Sharpe Ratio Comparison
+        mean_returns_stocks = log_returns_pivot.mean()
+        std_returns_stocks = log_returns_pivot.std()
+        sharpe_ratios_stocks = mean_returns_stocks / std_returns_stocks
+
+        mean_returns_bench = bench_log_returns['log_return'].mean()
+        std_returns_bench = bench_log_returns['log_return'].std()
+        sharpe_ratio_bench = mean_returns_bench / std_returns_bench
+
+        plt.subplot(3, 1, 3)
+        plt.bar(sharpe_ratios_stocks.index, sharpe_ratios_stocks, label="Stocks")
+        plt.axhline(sharpe_ratio_bench, color='red', linestyle='--', linewidth=2, label="Benchmark Sharpe Ratio")
+        plt.title("Sharpe Ratio Comparison")
+        plt.xlabel("Stocks")
+        plt.ylabel("Sharpe Ratio")
+        plt.legend()
+        plt.grid(True)
+
+        # Save the combined figure
+        plt.tight_layout()
+        plt.savefig(graphs_path)
+        plt.show()
+
+        print(f"Graphs saved in: {graphs_path}")
+
+    except ValueError as ve:
+        logging.error(f"Input Error: {ve}")
+    except Exception as e:
+        logging.error("An error occurred during execution.", exc_info=True)
+
