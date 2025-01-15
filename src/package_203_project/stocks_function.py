@@ -10,6 +10,8 @@ import pybacktestchain
 from pybacktestchain.data_module import get_stocks_data, get_stock_data
 import datetime
 import os
+import logging
+import matplotlib.pyplot as plt
 
 @dataclass
 class StockAnalysis:
@@ -34,23 +36,38 @@ class StockAnalysis:
         Returns a dictionary with betas for each stock and the average beta.
         
         """
+        # Align time zones and remove conflicting Date formats
+        log_returns_pivot.index = pd.to_datetime(log_returns_pivot.index).tz_localize(None)
+        bench_log_returns['Date'] = pd.to_datetime(bench_log_returns['Date']).dt.tz_localize(None)
+
+        # Merge the datasets
         merged_data = log_returns_pivot.merge(
-            bench_log_returns, left_index=True, right_on='Date', how='inner'
-        ).set_index('Date')
+            bench_log_returns.set_index('Date'),
+            left_index=True,
+            right_index=True,
+            how='inner'
+        )
+        if merged_data.empty:
+            raise ValueError("Merged data is empty, ensure overlapping dates btw stocks and benchmark")
         
+        # Perform regression for each stock
         bench_return = merged_data['log_return']
         betas = []
         stock_betas = {}
 
         for stock in log_returns_pivot.columns:
-            y = merged_data[stock]
-            X = sm.add_constant(bench_return)
+            if merged_data[stock].isna().all():
+                stock_beta[stock] = None
+                continue
+
+            y = merged_data[stock].dropna()
+            X = sm.add_constant(bench_return.loc[y.index])
             model = sm.OLS(y, X, missing='drop').fit()
             beta = model.params[1]
             betas.append(beta)
             stock_betas[stock] = beta
 
-        average_beta = np.mean(betas)
+        average_beta = np.mean([b for b in betas if b is not None])  # In order to ignore None values
         return {"stock_betas": stock_betas, "average_beta": average_beta}
 
 @dataclass
@@ -130,14 +147,12 @@ class BenchmarkHandler:
 
 ########## USER INTERACTION ##########
 
-import logging
-import matplotlib.pyplot as plt
-import os
 
 # Enable logging
 logging.basicConfig(level=logging.INFO)
 
-def get_user_input():
+
+def get_stocks_user_input():
     """
     Collect user input for stocks, date range, and benchmark.
     """
@@ -161,29 +176,74 @@ def get_user_input():
 
     return tickers, start_date, end_date, benchmark
 
-def main():
+def run_stock_analysis():
+
+    """
+    Function to run the stock analysis with user inputs.
+    """
+
+    # Initialize variables to None to handle exceptions gracefully
+    log_returns_pivot = None
+    bench_log_returns = None
+    stock_data = None
+    ranked_stocks = None
+
     try:
-        tickers, start_date, end_date, benchmark = get_user_input()
+        tickers, start_date, end_date, benchmark = get_stocks_user_input()
 
         # Stock data handler
+        print("\n=== Fetching Log Returns Pivot ===")
         stock_handler = StockDataHandler(
             tickers=tickers,
             start_date=start_date,
             end_date=end_date
         )
+
         log_returns_pivot = stock_handler.get_stocks_log_returns()
-        print("\nLog Returns Pivot Table:")
-        print(log_returns_pivot.head())
+        print("\n=== Log Returns Pivot Table (Head) ===")
+        print(log_returns_pivot.head().to_string())
 
         # Benchmark handler
+        print("\n=== Fetching Benchmark Log Returns ===")
         benchmark_handler = BenchmarkHandler(
             benchmark=benchmark,
             start_date=start_date,
             end_date=end_date
         )
         bench_log_returns = benchmark_handler.get_bench_log_returns()
-        print("\nBenchmark Log Returns:")
-        print(bench_log_returns.head())
+        print("\n=== Benchmark Log Returns (Head) ===")
+        print(bench_log_returns.head().to_string())
+
+        # Rank stocks by volume
+        print("\n=== Fetching Stock Data and Ranking by Volume ===")
+        stock_data = get_stocks_data(
+            tickers=tickers,
+            start_date=start_date,
+            end_date=end_date
+        )
+        
+        ranked_stocks = StockAnalysis.rank_stocks_by_volume(stock_data)
+        print("\n=== Ranked Stocks by Volume ===")
+        print(ranked_stocks.to_string())
+
+        # Calculate average beta
+        print("\n=== Calculating Betas ===")
+        print("\nLog Returns Pivot Table :") # Print in case I need to debug 
+        print(log_returns_pivot.head().to_string())
+        print("\nBenchmark Log Returns (Full):")
+        print(bench_log_returns.head().to_string())
+
+        beta_result = StockAnalysis.calculate_average_beta(log_returns_pivot, bench_log_returns)
+        print("\n=== Betas for Each Stock ===")
+        for stock, beta in beta_result["stock_betas"].items():
+            print(f"{stock}: {beta:.4f}")
+        print(f"\n=== Average Beta ===\n{beta_result['average_beta']:.4f}")
+
+    except Exception as e:
+        logging.error("An error occurred during stock analysis:", exc_info=True)
+
+    # Plot graphs if data is available
+    if log_returns_pivot is not None and bench_log_returns is not None:
 
         # Ensure the folder for graphs exists
         graphs_folder = "stocks_function_graphs"
@@ -250,8 +310,6 @@ def main():
 
         print(f"Graphs saved in: {graphs_path}")
 
-    except ValueError as ve:
-        logging.error(f"Input Error: {ve}")
-    except Exception as e:
-        logging.error("An error occurred during execution.", exc_info=True)
+    else:
+        print("Graphs could not be generated due to missing data.")
 
