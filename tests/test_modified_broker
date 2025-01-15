@@ -5,14 +5,14 @@ from pybacktestchain.broker import StopLoss
 from pybacktestchain.blockchain import load_blockchain
 from package_203_project.modified_broker import Backtest
 from datetime import datetime
-
+from package_203_project.modified_portfolio_methods import SharpeRatioMaximization 
 
 backtest = Backtest(
     initial_date=datetime(2019, 1, 1),
     final_date=datetime(2020, 1, 1),
-    information_class=FirstTwoMoments,
+    information_class=SharpeRatioMaximization,
     risk_model=StopLoss,
-    rebalance_flag='weekly',  # Choose 'daily', 'weekly', or 'monthly'
+    rebalance_flag='monthly',  # Choose 'daily', 'weekly', or 'monthly'
     name_blockchain='backtest',
     verbose=False
 )
