@@ -159,6 +159,17 @@ class Backtest:
             print(f"Excess Kurtosis: {kurt:.6f}")
             print(f"Skewness: {skewness:.6f}")
 
+            # Normal VaR if skewness and kurtosis are between -1 and 1 - because we considere it is enough to consider it normally distributed 
+            if -1 <= skewness <= 1 and -1 <= kurt <= 1:
+                z_alpha = 1.645  # For 95% confidence level
+                VaR_normal = -(avg_return - z_alpha * std_dev) * self.initial_cash
+                print(f"Normal VaR (95% Confidence): {VaR_normal:.6f}")
+            else:
+                # Adjusted VaR formula with skewness and kurtosis (Cornish-Fisher Expansion)
+                z_alpha = 1.645  # For 95% confidence level
+                VaR_adjusted = -(avg_return - (z_alpha * std_dev + (1 / 6) * (z_alpha**2 - 1) * skewness + (1 / 24) * (z_alpha**3 - 3 * z_alpha) * kurt)) * self.initial_cash 
+                print(f"Adjusted VaR (95% Confidence): {VaR_adjusted:.6f}")
+
         # Create backtests folder if it does not exist
         if not os.path.exists('backtests_portfolio_values'):
             os.makedirs('backtests_portfolio_values')
