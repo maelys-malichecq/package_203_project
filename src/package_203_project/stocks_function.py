@@ -8,6 +8,8 @@ import statsmodels.api as sm
 import numpy as np
 import pybacktestchain
 from pybacktestchain.data_module import get_stocks_data, get_stock_data
+import datetime
+import os
 
 @dataclass
 class StockAnalysis:
@@ -187,9 +189,12 @@ def main():
         graphs_folder = "stocks_function_graphs"
         if not os.path.exists(graphs_folder):
             os.makedirs(graphs_folder)
-        graphs_path = os.path.join(graphs_folder, "comparison_graphs.png")
 
-        # Create a single figure for all three graphs
+        # Generate a unique filename using the current timestamp
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        graphs_path = os.path.join(graphs_folder, f"comparison_graph_{timestamp}.png")
+
+        # Create a single document for all three graphs
         plt.figure(figsize=(18, 18))
 
         # Subplot 1: Cumulative Returns

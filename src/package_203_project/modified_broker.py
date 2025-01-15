@@ -61,7 +61,7 @@ class EndOfDay(RebalanceFlag):
 class Backtest:
     initial_date: datetime
     final_date: datetime
-    universe = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META', 'TSLA', 'NVDA', 'INTC', 'CSCO', 'NFLX','MC',"SAN","OR"]
+    universe = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META', 'TSLA', 'NVDA', 'INTC', 'CSCO', 'NFLX']
     information_class: type = Information
     s: timedelta = timedelta(days=360)
     time_column: str = 'Date'

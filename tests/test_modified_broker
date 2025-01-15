@@ -6,6 +6,7 @@ from pybacktestchain.blockchain import load_blockchain
 from package_203_project.modified_broker import Backtest
 from datetime import datetime
 
+
 backtest = Backtest(
     initial_date=datetime(2010, 1, 1),
     final_date=datetime(2012, 1, 1),
