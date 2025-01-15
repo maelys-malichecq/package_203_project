@@ -75,6 +75,7 @@ class SharpeRatioMaximization(Information):
         information_set['expected_return'] = data.groupby(self.company_column)['return'].mean().to_numpy()
 
         # covariance matrix
+
         # 1. pivot the data
         data = data.pivot(index=self.time_column, columns=self.company_column, values=self.adj_close_column)
         # drop missing values
@@ -87,4 +88,54 @@ class SharpeRatioMaximization(Information):
         information_set['covariance_matrix'] = covariance_matrix
         information_set['companies'] = data.columns.to_numpy()
         
+        return information_set
+
+
+@dataclass
+class EqualWeightPortfolio(Information):
+    def compute_portfolio(self, t: datetime, information_set):
+        try:
+            # Number of assets
+            n = len(information_set['companies'])
+
+            # Equal weight
+            equal_weight = 1 / n
+
+            portfolio = {company: equal_weight for company in information_set['companies']}
+
+            return portfolio
+        except Exception as e:
+            logging.warning(f"Error computing portfolio, returning equal weight portfolio : {e}")
+            return {company: 1 / len(information_set['companies']) for company in information_set['companies']}
+
+    def compute_information(self, t: datetime):
+        # Get the data module 
+        data = self.slice_data(t)
+        # the information set will be a dictionary with the data
+        information_set = {}
+
+        # sort data by ticker and date
+        data = data.sort_values(by=[self.company_column, self.time_column])
+
+        # expected return per company
+        data['return'] = data.groupby(self.company_column)[self.adj_close_column].pct_change()
+
+        # expected return by company
+        information_set['expected_return'] = data.groupby(self.company_column)['return'].mean().to_numpy()
+        
+        # covariance matrix
+
+        # 1. pivot the data
+        data = data.pivot(index=self.time_column, columns=self.company_column, values=self.adj_close_column)
+        # drop missing values
+        data = data.dropna(axis=0)
+        # 2. compute the covariance matrix
+        covariance_matrix = data.cov()
+        # convert to numpy matrix 
+        covariance_matrix = covariance_matrix.to_numpy()
+
+        # add to the information set
+        information_set['covariance_matrix'] = covariance_matrix
+        information_set['companies'] = data.columns.to_numpy()
+
         return information_set
