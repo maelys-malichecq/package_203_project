@@ -41,8 +41,8 @@ class EndOfWeek(RebalanceFlag):
     def time_to_rebalance(self, t: datetime):
         # Convert to pandas Timestamp for convenience
         pd_date = pd.Timestamp(t)
-        # Check for the last business day of the week (Friday)
-        return pd_date.weekday == 4
+        # Check if the current day is the last business day of the week
+        return pd_date.weekday() == 4
 
 class EndOfDay(RebalanceFlag):
     def time_to_rebalance(self, t: datetime):
